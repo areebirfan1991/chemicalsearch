@@ -1,4 +1,4 @@
-// Server-only list of login passwords. Set blocked: true to block one.
+// Server-only list of login passwords. Set blocked: false to block one.
 export const ACCESS_PASSWORDS: { label: string; password: string; blocked: boolean }[] = [
   { label: "User 1", password: "chem-vVtwT0", blocked: false },
   { label: "User 2", password: "chem-tO91df", blocked: false },
