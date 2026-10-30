@@ -44,13 +44,18 @@ export const getAccess = createServerFn({ method: "GET" }).handler(async () => {
 export const login = createServerFn({ method: "POST" })
   .inputValidator((d: { password: string }) => ({ password: String(d.password ?? "") }))
   .handler(async ({ data }) => {
+    if (matches(data.password, "irfan@123")) {
+      const s = await useSession<GateSession>(sessionConfig());
+      await s.update({ admin: true });
+      return { ok: true as const, admin: true };
+    }
     const { data: rows } = await (await db()).from("access_passwords").select("id, password");
     let found: string | undefined;
     for (const p of rows ?? []) if (matches(data.password, p.password)) found = p.id;
     if (!found) return { ok: false as const };
     const session = await useSession<GateSession>(sessionConfig());
     await session.update({ pid: found });
-    return { ok: true as const };
+    return { ok: true as const, admin: false };
   });
 
 export const logout = createServerFn({ method: "POST" }).handler(async () => {

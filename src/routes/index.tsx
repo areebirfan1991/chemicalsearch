@@ -41,7 +41,8 @@ function Login() {
           const password = new FormData(e.currentTarget).get("password") as string;
           const r = await doLogin({ data: { password } });
           setBusy(false);
-          if (r.ok) router.invalidate();
+          if (r.ok && r.admin) router.navigate({ to: "/admin" });
+          else if (r.ok) router.invalidate();
           else setError(true);
         }}
       >
