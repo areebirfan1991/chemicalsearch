@@ -323,10 +323,11 @@ export default function ChemSearch() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".xlsx,.xls,.csv"
+              accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
               multiple
-              className="hidden"
-              onChange={(e) => handleFiles(e.target.files)}
+              className="sr-only"
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => { const fl = e.target.files; handleFiles(fl ? Array.from(fl) as any : null).finally(() => { e.target.value = ""; }); }}
             />
             {loadingFiles ? (
               <div className="flex items-center justify-center gap-2 text-muted-foreground">
