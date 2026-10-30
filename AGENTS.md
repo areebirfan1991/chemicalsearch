@@ -9,4 +9,4 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-- Site access uses shared passwords listed in src/lib/access.server.ts (server-only), checked in server functions with an encrypted session cookie; blocking = setting `blocked: true` so the user sees a non-dismissable renewal screen.
+- Site access passwords live in the access_passwords table (service-role only, no RLS policies), managed from /admin; the admin flag and logged-in password id live in the encrypted session cookie, checked in gate.functions.ts.
