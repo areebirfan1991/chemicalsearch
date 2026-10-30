@@ -83,12 +83,17 @@ function Panel() {
       <div className="mx-auto max-w-2xl">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-foreground">Admin Panel</h1>
+          <div className="flex gap-2">
+          <a href="/" className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
+            Open search
+          </a>
           <button
             onClick={async () => { await out(); router.invalidate(); }}
             className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
             Log out
           </button>
+          </div>
         </div>
 
         <form
