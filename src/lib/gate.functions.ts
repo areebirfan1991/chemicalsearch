@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { useSession } from "@tanstack/react-start/server";
 import { createHash, timingSafeEqual } from "node:crypto";
 
-type GateSession = { pid?: string; admin?: boolean };
+type GateSession = { pid?: string | undefined; admin?: boolean };
 
 function sessionConfig() {
   return {
