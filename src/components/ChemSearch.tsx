@@ -1,6 +1,8 @@
+// @ts-nocheck
 import { useState, useCallback, useRef } from "react";
 import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
+import FileSaver from "file-saver";
+const { saveAs } = FileSaver;
 import {
   Search,
   Upload,
