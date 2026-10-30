@@ -1,5 +1,8 @@
 // @ts-nocheck
 import { useState, useCallback, useRef } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useRouter } from "@tanstack/react-router";
+import { logout } from "@/lib/gate.functions";
 import * as XLSX from "xlsx";
 import FileSaver from "file-saver";
 const { saveAs } = FileSaver;
@@ -12,6 +15,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  LogOut,
 } from "lucide-react";
 
 // These are the fixed heading columns shown first when a row is expanded.
@@ -120,6 +124,8 @@ function HL({
 }
 
 export default function ChemSearch() {
+  const router = useRouter();
+  const doLogout = useServerFn(logout);
   const [files, setFiles] = useState<FileData[]>([]);
   const [query, setQuery] = useState("");
   const [aliasQuery, setAliasQuery] = useState("");
@@ -278,16 +284,30 @@ export default function ChemSearch() {
             <p className="text-[11px] text-muted-foreground mt-0.5">Excel chemical compound finder</p>
           </div>
         </div>
-        {results.length > 0 && (
+        <div className="flex items-center gap-2">
+          {results.length > 0 && (
+            <button
+              onClick={exportResults}
+              className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded hover:bg-primary/90 transition-colors"
+              style={{ fontFamily: "'DM Mono', monospace" }}
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export {results.length} rows — single sheet
+            </button>
+          )}
           <button
-            onClick={exportResults}
-            className="flex items-center gap-2 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded hover:bg-primary/90 transition-colors"
+            type="button"
+            onClick={async () => {
+              await doLogout();
+              router.invalidate();
+            }}
+            className="flex items-center gap-2 px-3 py-1.5 border border-border text-muted-foreground hover:text-foreground hover:border-primary/50 text-xs font-semibold rounded transition-colors"
             style={{ fontFamily: "'DM Mono', monospace" }}
           >
-            <Download className="w-3.5 h-3.5" />
-            Export {results.length} rows — single sheet
+            <LogOut className="w-3.5 h-3.5" />
+            Log out
           </button>
-        )}
+        </div>
       </header>
 
       <div className="flex-1 flex flex-col px-6 py-4 gap-4 min-h-0">
