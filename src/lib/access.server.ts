@@ -5,5 +5,5 @@ export const ACCESS_PASSWORDS: { label: string; password: string; blocked: boole
   { label: "User 3", password: "chem-glpxAY", blocked: false },
   { label: "User 4", password: "chem-M7S6XA", blocked: false },
   { label: "User 5", password: "chem-AnU87N", blocked: false },
-  { label: "User 6", password: "chem-9WFGta", blocked: true },
+  { label: "User 6", password: "chem-9WFGta", blocked: false },
 ];

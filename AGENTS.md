@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Site access uses shared passwords listed in src/lib/access.server.ts (server-only), checked in server functions with an encrypted session cookie; blocking = setting `blocked: true` so the user sees a non-dismissable renewal screen.
