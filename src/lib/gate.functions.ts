@@ -31,6 +31,7 @@ async function requireAdmin() {
 
 export const getAccess = createServerFn({ method: "GET" }).handler(async () => {
   const session = await useSession<GateSession>(sessionConfig());
+  if (session.data.admin) return { status: "ok" as const };
   if (!session.data.pid) return { status: "locked" as const };
   const { data } = await (await db())
     .from("access_passwords")
@@ -60,7 +61,7 @@ export const login = createServerFn({ method: "POST" })
 
 export const logout = createServerFn({ method: "POST" }).handler(async () => {
   const session = await useSession<GateSession>(sessionConfig());
-  await session.update({ pid: undefined });
+  await session.clear();
   return { ok: true as const };
 });
 
