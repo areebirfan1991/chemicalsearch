@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Fix large .xls uploads in Chrome and verify with a 300 MB test file
 - [x] Bring Chem Search site into the project
 - [x] 6 login passwords; blocked password shows unskippable "renew subscription" popup
 - [x] Log out button in the site header once signed in
