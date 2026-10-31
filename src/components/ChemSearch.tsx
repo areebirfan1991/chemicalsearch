@@ -143,6 +143,7 @@ export default function ChemSearch() {
   const [primaryCols, setPrimaryCols] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [matchMode, setMatchMode] = useState<"contains" | "exact" | "starts">("contains");
@@ -329,20 +330,23 @@ export default function ChemSearch() {
         {/* Controls */}
         <div className="flex-shrink-0 space-y-3">
           {/* Drop zone */}
-          <div
-            className="border border-dashed border-border rounded-lg p-5 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+          <label
+            htmlFor="chem-file-input"
+            className="block border border-dashed border-border rounded-lg p-5 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
+            onDrop={(e) => { e.preventDefault(); handleFiles(Array.from(e.dataTransfer.files)); }}
           >
             <input
+              id="chem-file-input"
               ref={fileInputRef}
               type="file"
-              accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
               multiple
               className="sr-only"
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => { const fl = e.target.files; handleFiles(fl ? Array.from(fl) as any : null).finally(() => { e.target.value = ""; }); }}
+              onChange={(e) => {
+                const input = e.currentTarget;
+                const list = input.files ? Array.from(input.files) : [];
+                handleFiles(list).finally(() => { input.value = ""; });
+              }}
             />
             {loadingFiles ? (
               <div className="flex items-center justify-center gap-2 text-muted-foreground">
@@ -358,7 +362,10 @@ export default function ChemSearch() {
                 </span>
               </div>
             )}
-          </div>
+          </label>
+          {uploadError && (
+            <p className="text-xs text-destructive" role="alert">{uploadError}</p>
+          )}
 
           {/* File chips */}
           {files.length > 0 && (
