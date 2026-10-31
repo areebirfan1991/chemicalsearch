@@ -49,44 +49,54 @@ type FileData = {
 };
 
 function useChunkedReader() {
-  const processFile = useCallback(
-    (file: File): Promise<FileData> =>
-      new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const bytes = new Uint8Array(e.target!.result as ArrayBuffer);
-            const wb = XLSX.read(bytes, { type: "array", cellDates: true });
-            const sheets: FileData["sheets"] = {};
-            for (const sheetName of wb.SheetNames) {
-              const ws = wb.Sheets[sheetName];
-              const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-                defval: "",
-                raw: false,
-              });
-              if (json.length === 0) continue;
-              // Trim every header key to strip accidental whitespace
-              const rawHeaders = Object.keys(json[0]);
-              const headers = rawHeaders.map((h) => h.trim());
-              const rows = json.map((r) => {
-                const normalized: Record<string, string> = {};
-                rawHeaders.forEach((rh, idx) => {
-                  normalized[headers[idx]] = String(r[rh] ?? "").trim();
-                });
-                return normalized;
-              });
-              sheets[sheetName] = { headers, rows };
-            }
-            resolve({ name: file.name, sheets });
-          } catch (err) {
-            reject(err);
-          }
-        };
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-      }),
-    []
-  );
+  const processFile = useCallback(async (file: File): Promise<FileData> => {
+    let buf: ArrayBuffer;
+    try {
+      buf = typeof file.arrayBuffer === "function"
+        ? await file.arrayBuffer()
+        : await new Promise<ArrayBuffer>((res, rej) => {
+            const reader = new FileReader();
+            reader.onload = () => res(reader.result as ArrayBuffer);
+            reader.onerror = () => rej(reader.error);
+            reader.readAsArrayBuffer(file);
+          });
+    } catch (err) {
+      throw new Error(
+        `Couldn't read "${file.name}". Close it in Excel, make sure it's saved on this computer (not only in OneDrive/cloud), then try again.`
+      );
+    }
+    // Let the browser paint the "Parsing…" state before heavy work
+    await new Promise((r) => setTimeout(r, 0));
+    let wb: XLSX.WorkBook;
+    try {
+      const isCsv = /\.csv$/i.test(file.name);
+      wb = isCsv
+        ? XLSX.read(new TextDecoder().decode(buf), { type: "string", cellDates: true, dense: true })
+        : XLSX.read(new Uint8Array(buf), { type: "array", cellDates: true, dense: true });
+    } catch (err) {
+      throw new Error(`"${file.name}" isn't a readable Excel/CSV file.`);
+    }
+    const sheets: FileData["sheets"] = {};
+    for (const sheetName of wb.SheetNames) {
+      const ws = wb.Sheets[sheetName];
+      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+        defval: "",
+        raw: false,
+      });
+      if (json.length === 0) continue;
+      const rawHeaders = Object.keys(json[0]);
+      const headers = rawHeaders.map((h) => h.trim());
+      const rows = json.map((r) => {
+        const normalized: Record<string, string> = {};
+        rawHeaders.forEach((rh, idx) => {
+          normalized[headers[idx]] = String(r[rh] ?? "").trim();
+        });
+        return normalized;
+      });
+      sheets[sheetName] = { headers, rows };
+    }
+    return { name: file.name, sheets };
+  }, []);
   return processFile;
 }
 
@@ -133,6 +143,7 @@ export default function ChemSearch() {
   const [primaryCols, setPrimaryCols] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [matchMode, setMatchMode] = useState<"contains" | "exact" | "starts">("contains");
@@ -140,16 +151,21 @@ export default function ChemSearch() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const processFile = useChunkedReader();
 
-  const handleFiles = async (incoming: FileList | null) => {
-    if (!incoming) return;
+  const handleFiles = async (incoming: FileList | File[] | null) => {
+    if (!incoming || incoming.length === 0) return;
     setLoadingFiles(true);
+    setUploadError(null);
     const loaded: FileData[] = [];
+    const errors: string[] = [];
     for (const f of Array.from(incoming)) {
       try {
         loaded.push(await processFile(f));
-      } catch {
-        /* skip corrupt */ }
+      } catch (err) {
+        console.error("Upload failed", f.name, err);
+        errors.push(err instanceof Error ? err.message : `Couldn't open "${f.name}".`);
+      }
     }
+    if (errors.length) setUploadError(errors.join(" "));
     setFiles((prev) => {
       const next = [...prev, ...loaded];
       // Derive primary cols from the first sheet of the first file
@@ -314,20 +330,23 @@ export default function ChemSearch() {
         {/* Controls */}
         <div className="flex-shrink-0 space-y-3">
           {/* Drop zone */}
-          <div
-            className="border border-dashed border-border rounded-lg p-5 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+          <label
+            htmlFor="chem-file-input"
+            className="block border border-dashed border-border rounded-lg p-5 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
+            onDrop={(e) => { e.preventDefault(); handleFiles(Array.from(e.dataTransfer.files)); }}
           >
             <input
+              id="chem-file-input"
               ref={fileInputRef}
               type="file"
-              accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
               multiple
               className="sr-only"
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => { const fl = e.target.files; handleFiles(fl ? Array.from(fl) as any : null).finally(() => { e.target.value = ""; }); }}
+              onChange={(e) => {
+                const input = e.currentTarget;
+                const list = input.files ? Array.from(input.files) : [];
+                handleFiles(list).finally(() => { input.value = ""; });
+              }}
             />
             {loadingFiles ? (
               <div className="flex items-center justify-center gap-2 text-muted-foreground">
@@ -343,7 +362,10 @@ export default function ChemSearch() {
                 </span>
               </div>
             )}
-          </div>
+          </label>
+          {uploadError && (
+            <p className="text-xs text-destructive" role="alert">{uploadError}</p>
+          )}
 
           {/* File chips */}
           {files.length > 0 && (
