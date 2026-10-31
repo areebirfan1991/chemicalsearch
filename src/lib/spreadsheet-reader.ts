@@ -42,7 +42,9 @@ async function readHtml(file: File, encoding: string): Promise<FileData> {
     const workbook = XLSX.read(`<table>${batch.join("")}</table>`, {
       type: "string", dense: true, cellDates: true,
     });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const name = workbook.SheetNames[0];
+    if (!name) return;
+    const sheet = workbook.Sheets[name];
     if (!sheet) return;
     const values = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
       header: 1, defval: "", raw: false, blankrows: false,
@@ -139,8 +141,9 @@ export async function processSpreadsheet(file: File): Promise<FileData> {
       const sheet = workbook.Sheets[name];
       if (!sheet) continue;
       const values = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "", raw: false });
-      if (!values.length) continue;
-      const original = Object.keys(values[0]);
+      const first = values[0];
+      if (!first) continue;
+      const original = Object.keys(first);
       const headers = original.map((header) => header.trim());
       const rows = values.map((value) => Object.fromEntries(original.map((key, index) =>
         [headers[index], String(value[key] ?? "").trim()])));
