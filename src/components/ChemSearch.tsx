@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@tanstack/react-router";
 import { logout } from "@/lib/gate.functions";
 import * as XLSX from "xlsx";
+import { processSpreadsheet, type FileData } from "@/lib/spreadsheet-reader";
 import FileSaver from "file-saver";
 const { saveAs } = FileSaver;
 import {
@@ -42,63 +43,6 @@ type RowResult = {
   data: Record<string, string>;
   allFileHeaders: string[];
 };
-
-type FileData = {
-  name: string;
-  sheets: Record<string, { headers: string[]; rows: Record<string, string>[] }>;
-};
-
-function useChunkedReader() {
-  const processFile = useCallback(async (file: File): Promise<FileData> => {
-    let buf: ArrayBuffer;
-    try {
-      buf = typeof file.arrayBuffer === "function"
-        ? await file.arrayBuffer()
-        : await new Promise<ArrayBuffer>((res, rej) => {
-            const reader = new FileReader();
-            reader.onload = () => res(reader.result as ArrayBuffer);
-            reader.onerror = () => rej(reader.error);
-            reader.readAsArrayBuffer(file);
-          });
-    } catch (err) {
-      throw new Error(
-        `Couldn't read "${file.name}". Close it in Excel, make sure it's saved on this computer (not only in OneDrive/cloud), then try again.`
-      );
-    }
-    // Let the browser paint the "Parsing…" state before heavy work
-    await new Promise((r) => setTimeout(r, 0));
-    let wb: XLSX.WorkBook;
-    try {
-      const isCsv = /\.csv$/i.test(file.name);
-      wb = isCsv
-        ? XLSX.read(new TextDecoder().decode(buf), { type: "string", cellDates: true, dense: true })
-        : XLSX.read(new Uint8Array(buf), { type: "array", cellDates: true, dense: true });
-    } catch (err) {
-      throw new Error(`"${file.name}" isn't a readable Excel/CSV file.`);
-    }
-    const sheets: FileData["sheets"] = {};
-    for (const sheetName of wb.SheetNames) {
-      const ws = wb.Sheets[sheetName];
-      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-        defval: "",
-        raw: false,
-      });
-      if (json.length === 0) continue;
-      const rawHeaders = Object.keys(json[0]);
-      const headers = rawHeaders.map((h) => h.trim());
-      const rows = json.map((r) => {
-        const normalized: Record<string, string> = {};
-        rawHeaders.forEach((rh, idx) => {
-          normalized[headers[idx]] = String(r[rh] ?? "").trim();
-        });
-        return normalized;
-      });
-      sheets[sheetName] = { headers, rows };
-    }
-    return { name: file.name, sheets };
-  }, []);
-  return processFile;
-}
 
 function HL({
   text,
@@ -149,7 +93,7 @@ export default function ChemSearch() {
   const [matchMode, setMatchMode] = useState<"contains" | "exact" | "starts">("contains");
   const [caseSensitive, setCaseSensitive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const processFile = useChunkedReader();
+  const processFile = processSpreadsheet;
 
   const handleFiles = async (incoming: FileList | File[] | null) => {
     if (!incoming || incoming.length === 0) return;

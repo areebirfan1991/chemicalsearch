@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Site access passwords live in the access_passwords table (service-role only, no RLS policies), managed from /admin; the admin flag and logged-in password id live in the encrypted session cookie, checked in gate.functions.ts.
+- Spreadsheet import logic lives in a browser-safe reader module; HTML-based Excel exports are decoded in bounded chunks to avoid SheetJS's whole-file string conversion in Chrome.
