@@ -8,8 +8,8 @@ describe("spreadsheet reader", () => {
       Array.from({ length: 270 }, (_, index) => `<tr><td>Acetone ${index}</td><td>${index}</td></tr>${" ".repeat(8000)}`).join("") +
       '</table></html>';
     const result = await processSpreadsheet(new File([content], "all 2026.xls"));
-    expect(result.sheets.Sheet1.rows).toHaveLength(270);
-    expect(result.sheets.Sheet1.rows[269]).toEqual({ Item: "Acetone 269", Code: "269" });
+    expect(result.sheets['Sheet1']?.rows).toHaveLength(270);
+    expect(result.sheets['Sheet1']?.rows[269]).toEqual({ Item: "Acetone 269", Code: "269" });
   });
 
   it("reads binary XLS and XLSX without interpreting them as HTML", async () => {
@@ -18,7 +18,7 @@ describe("spreadsheet reader", () => {
     for (const bookType of ["xls", "xlsx"] as const) {
       const bytes = XLSX.write(book, { type: "array", bookType });
       const result = await processSpreadsheet(new File([bytes], `imports.${bookType}`));
-      expect(result.sheets.Imports.rows[0]).toEqual({ Item: "Acetone" });
+      expect(result.sheets['Imports']?.rows[0]).toEqual({ Item: "Acetone" });
     }
   });
 
@@ -29,7 +29,7 @@ describe("spreadsheet reader", () => {
     const view = new DataView(bytes.buffer);
     for (let index = 0; index < text.length; index++) view.setUint16(2 + index * 2, text.charCodeAt(index), true);
     const result = await processSpreadsheet(new File([bytes], "export.xls"));
-    expect(result.sheets.Sheet1.rows[0].Item).toBe("Café");
-    expect(result.sheets.Sheet2.rows[0].Item).toBe("Zinc");
+    expect(result.sheets['Sheet1']?.rows[0]?.['Item']).toBe("Café");
+    expect(result.sheets['Sheet2']?.rows[0]?.['Item']).toBe("Zinc");
   });
 });
