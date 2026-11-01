@@ -1,8 +1,8 @@
 // @ts-nocheck
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useRouter } from "@tanstack/react-router";
-import { logout } from "@/lib/gate.functions";
+import { logout, getPreload } from "@/lib/gate.functions";
 import * as XLSX from "xlsx";
 import { processSpreadsheet, type FileData } from "@/lib/spreadsheet-reader";
 import FileSaver from "file-saver";
