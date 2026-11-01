@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   adminStatus,
   adminLogin,
@@ -9,7 +10,44 @@ import {
   addPassword,
   deletePassword,
   setFrozen,
+  preloadUploadUrl,
+  setPreload,
 } from "@/lib/gate.functions";
+
+function PreloadControl({ id, name }: { id: string; name: string | null }) {
+  const router = useRouter();
+  const getUrl = useServerFn(preloadUploadUrl);
+  const save = useServerFn(setPreload);
+  const [status, setStatus] = useState("");
+  const upload = async (file: File) => {
+    try {
+      setStatus(`Uploading ${file.name}… keep this page open`);
+      const { path, token } = await getUrl({ data: { id, name: file.name } });
+      const { error } = await supabase.storage.from("preloads").uploadToSignedUrl(path, token, file);
+      if (error) throw error;
+      await save({ data: { id, path, name: file.name } });
+      setStatus("");
+      router.invalidate();
+    } catch (e) {
+      setStatus(`Upload failed: ${e instanceof Error ? e.message : "unknown error"}`);
+    }
+  };
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      <span>{name ? `Preloaded: ${name}` : "No preloaded file"}</span>
+      <label className="cursor-pointer text-primary underline">
+        {name ? "Replace" : "Add file"}
+        <input type="file" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) upload(f); }} />
+      </label>
+      {name && (
+        <button className="text-destructive underline" onClick={async () => { await save({ data: { id, path: null, name: null } }); router.invalidate(); }}>
+          Remove
+        </button>
+      )}
+      {status && <span className="w-full text-foreground">{status}</span>}
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -122,7 +160,10 @@ function Panel() {
         <ul className="mt-6 divide-y divide-border rounded-xl border border-border bg-card">
           {rows.map((r) => (
             <li key={r.id} className="flex items-center gap-3 px-4 py-3">
-              <span className="flex-1 font-mono text-foreground">{r.password}</span>
+              <div className="flex-1">
+                <span className="font-mono text-foreground">{r.password}</span>
+                <PreloadControl id={r.id} name={r.preload_name} />
+              </div>
               <span className={`text-xs ${r.frozen ? "text-destructive" : "text-primary"}`}>
                 {r.frozen ? "Frozen" : "Active"}
               </span>
