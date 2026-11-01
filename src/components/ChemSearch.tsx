@@ -124,6 +124,27 @@ export default function ChemSearch() {
     setLoadingFiles(false);
   };
 
+  const preloadStarted = useRef(false);
+  const fetchPreload = useServerFn(getPreload);
+  useEffect(() => {
+    if (preloadStarted.current) return;
+    preloadStarted.current = true;
+    (async () => {
+      const info = await fetchPreload().catch(() => null);
+      if (!info) return;
+      setLoadingFiles(true);
+      try {
+        const res = await fetch(info.url);
+        if (!res.ok) throw new Error();
+        const blob = await res.blob();
+        await handleFiles([new File([blob], info.name)]);
+      } catch {
+        setUploadError(`Couldn't load the preloaded file "${info.name}".`);
+        setLoadingFiles(false);
+      }
+    })();
+  }, []);
+
   const removeFile = (name: string) => {
     setFiles((prev) => {
       const next = prev.filter((f) => f.name !== name);

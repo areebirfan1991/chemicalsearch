@@ -90,7 +90,7 @@ export const listPasswords = createServerFn({ method: "GET" }).handler(async () 
   await requireAdmin();
   const { data, error } = await (await db())
     .from("access_passwords")
-    .select("id, password, frozen")
+    .select("id, password, frozen, preload_name")
     .order("created_at");
   if (error) throw new Error("Could not load passwords");
   return data;
@@ -121,3 +121,38 @@ export const setFrozen = createServerFn({ method: "POST" })
     await (await db()).from("access_passwords").update({ frozen: data.frozen }).eq("id", data.id);
     return { ok: true as const };
   });
+
+// ---------- Preloaded file per password ----------
+export const preloadUploadUrl = createServerFn({ method: "POST" })
+  .inputValidator((d: { id: string; name: string }) => ({ id: String(d.id), name: String(d.name).slice(0, 200) }))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const path = `${data.id}/${Date.now()}-${data.name.replace(/[^\w.\- ]/g, "_")}`;
+    const { data: signed, error } = await (await db()).storage.from("preloads").createSignedUploadUrl(path);
+    if (error || !signed) throw new Error("Could not prepare upload");
+    return { path, token: signed.token };
+  });
+
+export const setPreload = createServerFn({ method: "POST" })
+  .inputValidator((d: { id: string; path: string | null; name: string | null }) => ({
+    id: String(d.id), path: d.path ? String(d.path) : null, name: d.name ? String(d.name) : null,
+  }))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    const admin = await db();
+    const { data: old } = await admin.from("access_passwords").select("preload_path").eq("id", data.id).maybeSingle();
+    if (old?.preload_path && old.preload_path !== data.path) await admin.storage.from("preloads").remove([old.preload_path]);
+    await admin.from("access_passwords").update({ preload_path: data.path, preload_name: data.name }).eq("id", data.id);
+    return { ok: true as const };
+  });
+
+export const getPreload = createServerFn({ method: "GET" }).handler(async () => {
+  const session = await useSession<GateSession>(sessionConfig());
+  if (!session.data.pid) return null;
+  const admin = await db();
+  const { data } = await admin.from("access_passwords").select("preload_path, preload_name, frozen").eq("id", session.data.pid).maybeSingle();
+  if (!data?.preload_path || data.frozen) return null;
+  const { data: signed } = await admin.storage.from("preloads").createSignedUrl(data.preload_path, 60 * 60);
+  if (!signed) return null;
+  return { url: signed.signedUrl, name: data.preload_name ?? "Preloaded file" };
+});
