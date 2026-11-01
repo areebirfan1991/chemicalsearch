@@ -20,18 +20,24 @@ export type Database = {
           frozen: boolean
           id: string
           password: string
+          preload_name: string | null
+          preload_path: string | null
         }
         Insert: {
           created_at?: string
           frozen?: boolean
           id?: string
           password: string
+          preload_name?: string | null
+          preload_path?: string | null
         }
         Update: {
           created_at?: string
           frozen?: boolean
           id?: string
           password?: string
+          preload_name?: string | null
+          preload_path?: string | null
         }
         Relationships: []
       }

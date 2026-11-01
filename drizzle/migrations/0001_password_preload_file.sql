@@ -1,0 +1,1 @@
+ALTER TABLE public.access_passwords ADD COLUMN IF NOT EXISTS preload_path text, ADD COLUMN IF NOT EXISTS preload_name text;
