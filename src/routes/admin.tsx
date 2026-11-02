@@ -1,10 +1,9 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   adminStatus,
-  adminLogin,
   adminLogout,
   listPasswords,
   addPassword,
@@ -63,48 +62,12 @@ export const Route = createFileRoute("/admin")({
   }),
   loader: async () => {
     const { admin } = await adminStatus();
-    return { admin, rows: admin ? await listPasswords() : [] };
+    if (!admin) throw redirect({ to: "/" });
+    return { admin: true as const, rows: await listPasswords() };
   },
-  component: AdminPage,
+  component: Panel,
 });
 
-function AdminPage() {
-  const { admin } = Route.useLoaderData();
-  return admin ? <Panel /> : <AdminLogin />;
-}
-
-function AdminLogin() {
-  const router = useRouter();
-  const doLogin = useServerFn(adminLogin);
-  const [error, setError] = useState(false);
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <form
-        className="w-full max-w-sm rounded-xl border border-border bg-card p-8"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          const password = new FormData(e.currentTarget).get("password") as string;
-          const r = await doLogin({ data: { password } });
-          if (r.ok) router.invalidate();
-          else setError(true);
-        }}
-      >
-        <h1 className="text-xl font-semibold text-foreground">Admin Panel</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Enter admin password</p>
-        <input
-          name="password"
-          type="password"
-          autoFocus
-          className="mt-6 w-full rounded-md border border-border bg-input px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-ring"
-        />
-        {error && <p className="mt-2 text-sm text-destructive">Incorrect password</p>}
-        <button className="mt-4 w-full rounded-md bg-primary px-4 py-2 font-medium text-primary-foreground">
-          Enter
-        </button>
-      </form>
-    </div>
-  );
-}
 
 function Panel() {
   const { rows } = Route.useLoaderData();
