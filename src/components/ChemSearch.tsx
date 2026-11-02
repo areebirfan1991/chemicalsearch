@@ -5,6 +5,7 @@ import { useRouter } from "@tanstack/react-router";
 import { logout, getPreload } from "@/lib/gate.functions";
 import * as XLSX from "xlsx";
 import { processSpreadsheet, type FileData } from "@/lib/spreadsheet-reader";
+import { Button } from "@/components/ui/button";
 import FileSaver from "file-saver";
 const { saveAs } = FileSaver;
 import {
@@ -94,42 +95,42 @@ export default function ChemSearch() {
   const [matchMode, setMatchMode] = useState<"contains" | "exact" | "starts">("contains");
   const [caseSensitive, setCaseSensitive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingFiles = useRef<File[]>([]);
+  const processingFiles = useRef(false);
   const processFile = processSpreadsheet;
 
   const handleFiles = async (incoming: FileList | File[] | null) => {
     if (!incoming || incoming.length === 0) return;
-    const list = Array.from(incoming);
+    pendingFiles.current.push(...Array.from(incoming));
+    if (processingFiles.current) return;
+    processingFiles.current = true;
     setLoadingFiles(true);
     setUploadError(null);
-    const loaded: FileData[] = [];
     const errors: string[] = [];
-    for (let i = 0; i < list.length; i++) {
-      const f = list[i];
-      setProgress({ done: i, total: list.length, name: f.name });
+    let done = 0;
+    while (pendingFiles.current.length > 0) {
+      const f = pendingFiles.current.shift();
+      if (!f) break;
+      setProgress({ done, total: done + 1 + pendingFiles.current.length, name: f.name });
       try {
-        loaded.push(await processFile(f));
+        const fileData = await processFile(f);
+        setFiles((prev) => {
+          const next = [...prev];
+          const at = next.findIndex((file) => file.name === fileData.name);
+          if (at >= 0) next[at] = fileData;
+          else next.push(fileData);
+          return next;
+        });
+        const firstSheet = Object.values(fileData.sheets)[0];
+        if (firstSheet) setPrimaryCols((prev) => prev.length ? prev : firstSheet.headers.slice(0, PRIMARY_COUNT));
       } catch (err) {
         console.error("Upload failed", f.name, err);
         errors.push(err instanceof Error ? err.message : `Couldn't open "${f.name}".`);
       }
+      done++;
     }
     if (errors.length) setUploadError(errors.join(" "));
-    setFiles((prev) => {
-      const next = [...prev];
-      for (const fileData of loaded) {
-        const at = next.findIndex((f) => f.name === fileData.name);
-        if (at >= 0) next[at] = fileData;
-        else next.push(fileData);
-      }
-      // Derive primary cols from the first sheet of the first file
-      if (next.length > 0 && primaryCols.length === 0) {
-        const firstSheets = Object.values(next[0].sheets);
-        if (firstSheets.length > 0) {
-          setPrimaryCols(firstSheets[0].headers.slice(0, PRIMARY_COUNT));
-        }
-      }
-      return next;
-    });
+    processingFiles.current = false;
     setProgress(null);
     setLoadingFiles(false);
   };
@@ -305,9 +306,8 @@ export default function ChemSearch() {
         {/* Controls */}
         <div className="flex-shrink-0 space-y-3">
           {/* Drop zone */}
-          <label
-            htmlFor="chem-file-input"
-            className="block border border-dashed border-border rounded-lg p-5 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+          <div
+            className="border border-dashed border-border rounded-lg p-4 text-center transition-all space-y-3"
             onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
             onDrop={(e) => { e.preventDefault(); handleFiles(Array.from(e.dataTransfer.files)); }}
           >
@@ -316,17 +316,19 @@ export default function ChemSearch() {
               ref={fileInputRef}
               type="file"
               multiple
+              aria-label="Add Excel files"
               className="sr-only"
               onChange={(e) => {
                 const input = e.currentTarget;
                 const list = input.files ? Array.from(input.files) : [];
-                handleFiles(list).finally(() => { input.value = ""; });
+                input.value = "";
+                void handleFiles(list);
               }}
             />
             {loadingFiles ? (
-              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <div role="status" className="flex items-center justify-center gap-2 text-muted-foreground min-w-0">
                 <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <span className="text-xs text-center" style={{ fontFamily: "'DM Mono', monospace" }}>
+                <span className="text-xs text-center break-all" style={{ fontFamily: "'DM Mono', monospace" }}>
                   {progress && progress.total > 1
                     ? `Parsing file ${progress.done + 1} of ${progress.total} — ${progress.name}`
                     : "Parsing file…"}
@@ -336,14 +338,18 @@ export default function ChemSearch() {
               <div className="flex items-center justify-center gap-3">
                 <Upload className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 <span className="text-xs">
-                  Drop Excel files here or click to browse
+                  {files.length ? `${files.length} files loaded` : "Excel files"}
                   <span className="text-muted-foreground ml-2">
-                    pick 2, 3, 4 at once · .xlsx · .xls · .csv — up to 300 MB
+                    .xlsx · .xls · .csv
                   </span>
                 </span>
               </div>
             )}
-          </label>
+            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload />
+              {files.length || loadingFiles ? "Add more files" : "Add files"}
+            </Button>
+          </div>
           {uploadError && (
             <p className="text-xs text-destructive" role="alert">{uploadError}</p>
           )}
@@ -352,7 +358,7 @@ export default function ChemSearch() {
           {files.length > 0 && (
             <div className="flex flex-wrap gap-2 items-center">
               <span className="text-[11px] text-muted-foreground" style={{ fontFamily: "'DM Mono', monospace" }}>
-                {totalRows.toLocaleString()} rows loaded
+                {files.length} files · {totalRows.toLocaleString()} rows loaded
               </span>
               {files.map((f) => {
                 const sc = Object.keys(f.sheets).length;

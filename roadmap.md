@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Fix adding multiple customer files on phones, including separate selections during parsing
 - [ ] Fix large .xls uploads in Chrome and verify with a 300 MB test file
 - [x] Bring Chem Search site into the project
 - [x] 6 login passwords; blocked password shows unskippable "renew subscription" popup
