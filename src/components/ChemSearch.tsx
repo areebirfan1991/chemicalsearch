@@ -88,6 +88,7 @@ export default function ChemSearch() {
   const [loading, setLoading] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number; name: string } | null>(null);
   const [searched, setSearched] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [matchMode, setMatchMode] = useState<"contains" | "exact" | "starts">("contains");
@@ -97,11 +98,14 @@ export default function ChemSearch() {
 
   const handleFiles = async (incoming: FileList | File[] | null) => {
     if (!incoming || incoming.length === 0) return;
+    const list = Array.from(incoming);
     setLoadingFiles(true);
     setUploadError(null);
     const loaded: FileData[] = [];
     const errors: string[] = [];
-    for (const f of Array.from(incoming)) {
+    for (let i = 0; i < list.length; i++) {
+      const f = list[i];
+      setProgress({ done: i, total: list.length, name: f.name });
       try {
         loaded.push(await processFile(f));
       } catch (err) {
@@ -111,7 +115,12 @@ export default function ChemSearch() {
     }
     if (errors.length) setUploadError(errors.join(" "));
     setFiles((prev) => {
-      const next = [...prev, ...loaded];
+      const next = [...prev];
+      for (const fileData of loaded) {
+        const at = next.findIndex((f) => f.name === fileData.name);
+        if (at >= 0) next[at] = fileData;
+        else next.push(fileData);
+      }
       // Derive primary cols from the first sheet of the first file
       if (next.length > 0 && primaryCols.length === 0) {
         const firstSheets = Object.values(next[0].sheets);
@@ -121,6 +130,7 @@ export default function ChemSearch() {
       }
       return next;
     });
+    setProgress(null);
     setLoadingFiles(false);
   };
 
@@ -316,14 +326,20 @@ export default function ChemSearch() {
             {loadingFiles ? (
               <div className="flex items-center justify-center gap-2 text-muted-foreground">
                 <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <span className="text-xs" style={{ fontFamily: "'DM Mono', monospace" }}>Parsing file…</span>
+                <span className="text-xs text-center" style={{ fontFamily: "'DM Mono', monospace" }}>
+                  {progress && progress.total > 1
+                    ? `Parsing file ${progress.done + 1} of ${progress.total} — ${progress.name}`
+                    : "Parsing file…"}
+                </span>
               </div>
             ) : (
               <div className="flex items-center justify-center gap-3">
                 <Upload className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 <span className="text-xs">
                   Drop Excel files here or click to browse
-                  <span className="text-muted-foreground ml-2">.xlsx · .xls · .csv — up to 300 MB</span>
+                  <span className="text-muted-foreground ml-2">
+                    pick 2, 3, 4 at once · .xlsx · .xls · .csv — up to 300 MB
+                  </span>
                 </span>
               </div>
             )}
