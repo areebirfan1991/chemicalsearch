@@ -5,3 +5,4 @@
 - [x] Log out button in the site header once signed in
 - [ ] Publish (waiting on user approval)
 - [x] Single login page: admin password (irfan@123) opens the admin panel, user passwords open the site
+- [x] Upload several Excel files at once (2, 3, 4…) with per-file progress; re-adding a file replaces it
