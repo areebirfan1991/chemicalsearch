@@ -71,14 +71,6 @@ export const adminStatus = createServerFn({ method: "GET" }).handler(async () =>
   return { admin: !!session.data.admin };
 });
 
-export const adminLogin = createServerFn({ method: "POST" })
-  .inputValidator((d: { password: string }) => ({ password: String(d.password ?? "") }))
-  .handler(async ({ data }) => {
-    if (!matches(data.password, "irfan@123")) return { ok: false as const };
-    const session = await useSession<GateSession>(sessionConfig());
-    await session.update({ admin: true });
-    return { ok: true as const };
-  });
 
 export const adminLogout = createServerFn({ method: "POST" }).handler(async () => {
   const session = await useSession<GateSession>(sessionConfig());
