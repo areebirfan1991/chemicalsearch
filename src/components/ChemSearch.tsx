@@ -259,6 +259,11 @@ export default function ChemSearch() {
       return s;
     });
 
+  const clearSearch = () => {
+    setQuery("");
+    setAliasQuery("");
+  };
+
   const totalRows = files.reduce(
     (acc, f) => acc + Object.values(f.sheets).reduce((a, s) => a + s.rows.length, 0),
     0
@@ -398,63 +403,88 @@ export default function ChemSearch() {
           )}
 
           {/* Search row */}
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center">
             {/* Main search */}
-            <div className="relative flex-1">
+            <div className="relative w-full min-w-0 sm:flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input
                 type="text"
+                inputMode="search"
+                enterKeyHint="search"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                aria-label="Search chemicals"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && runSearch()}
                 placeholder="Chemical name, CAS number, description…"
-                className="w-full bg-input-background border border-border rounded-lg pl-10 pr-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary/50 transition-colors"
+                className="w-full min-w-0 bg-input text-foreground border border-border rounded-lg pl-10 pr-10 py-2 text-base sm:text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary/50 transition-colors"
                 style={{ fontFamily: "'DM Mono', monospace" }}
               />
+              {(query.trim() || aliasQuery.trim()) && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  aria-label="Clear search"
+                  title="Clear search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {/* Alias search */}
-            <div className="relative w-52">
+            <div className="relative w-full min-w-0 sm:w-52">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <input
                 type="text"
+                inputMode="search"
+                enterKeyHint="search"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                aria-label="Search by other name or alias"
                 value={aliasQuery}
                 onChange={(e) => setAliasQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && runSearch()}
                 placeholder="Other name / alias…"
-                className="w-full bg-input-background border border-dashed border-border rounded-lg pl-8 pr-3 py-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary/50 transition-colors"
+                className="w-full min-w-0 bg-input text-foreground border border-dashed border-border rounded-lg pl-8 pr-3 py-2 text-base sm:text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary/50 transition-colors"
                 style={{ fontFamily: "'DM Mono', monospace" }}
               />
             </div>
 
-            {/* Match mode */}
-            <div className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-input-background">
-              {(["contains", "starts", "exact"] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMatchMode(m)}
-                  className={`text-[11px] px-2 py-0.5 rounded transition-colors ${matchMode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                  style={{ fontFamily: "'DM Mono', monospace" }}
-                >
-                  {m}
-                </button>
-              ))}
+            {/* Match mode, case option and search button */}
+            <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto">
+              <div className="flex items-center gap-1 border border-border rounded-lg px-2 py-1 bg-input">
+                {(["contains", "starts", "exact"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMatchMode(m)}
+                    className={`text-[11px] px-2 py-0.5 rounded transition-colors ${matchMode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                    style={{ fontFamily: "'DM Mono', monospace" }}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+
+              <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none" style={{ fontFamily: "'DM Mono', monospace" }}>
+                <input type="checkbox" checked={caseSensitive} onChange={(e) => setCaseSensitive(e.target.checked)} className="accent-primary" />
+                Aa
+              </label>
+
+              <button
+                onClick={runSearch}
+                disabled={loading || files.length === 0 || (!query.trim() && !aliasQuery.trim())}
+                className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2 whitespace-nowrap"
+                style={{ fontFamily: "'DM Mono', monospace" }}
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                Search
+              </button>
             </div>
-
-            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none" style={{ fontFamily: "'DM Mono', monospace" }}>
-              <input type="checkbox" checked={caseSensitive} onChange={(e) => setCaseSensitive(e.target.checked)} className="accent-primary" />
-              Aa
-            </label>
-
-            <button
-              onClick={runSearch}
-              disabled={loading || files.length === 0 || (!query.trim() && !aliasQuery.trim())}
-              className="px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2 whitespace-nowrap"
-              style={{ fontFamily: "'DM Mono', monospace" }}
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              Search
-            </button>
           </div>
         </div>
 

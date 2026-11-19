@@ -41,3 +41,22 @@ describe("multiple customer files", () => {
     expect(screen.getByText("second.xlsx")).toBeInTheDocument();
   });
 });
+
+describe("search text", () => {
+  it("clears the typed text when the clear button is pressed", async () => {
+    parse.mockImplementation(async (file: File) => parsed(file.name));
+    render(<ChemSearch />);
+    fireEvent.change(screen.getByLabelText("Add Excel files"), {
+      target: { files: [new File(["data"], "part1.xlsx")] },
+    });
+    await waitFor(() => expect(screen.getByText("1 files · 1 rows loaded")).toBeInTheDocument());
+    const box = screen.getByLabelText("Search chemicals") as HTMLInputElement;
+    const alias = screen.getByLabelText("Search by other name or alias") as HTMLInputElement;
+    fireEvent.change(box, { target: { value: "Acetone" } });
+    fireEvent.change(alias, { target: { value: "Propanone" } });
+    expect(box.value).toBe("Acetone");
+    fireEvent.click(screen.getByLabelText("Clear search"));
+    expect(box.value).toBe("");
+    expect(alias.value).toBe("");
+  });
+});
