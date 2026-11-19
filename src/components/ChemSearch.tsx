@@ -450,9 +450,20 @@ export default function ChemSearch() {
                 onChange={(e) => setAliasQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && runSearch()}
                 placeholder="Other name / alias…"
-                className="w-full min-w-0 bg-input text-foreground border border-dashed border-border rounded-lg pl-8 pr-3 py-2 text-base sm:text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary/50 transition-colors"
+                className="w-full min-w-0 bg-input text-foreground border border-dashed border-border rounded-lg pl-8 pr-9 py-2 text-base sm:text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:border-primary/50 transition-colors"
                 style={{ fontFamily: "'DM Mono', monospace" }}
               />
+              {aliasQuery.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setAliasQuery("")}
+                  aria-label="Clear alias"
+                  title="Clear alias"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Match mode, case option and search button */}
@@ -483,6 +494,18 @@ export default function ChemSearch() {
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 Search
+              </button>
+
+              <button
+                type="button"
+                onClick={clearSearch}
+                aria-label="Clear all search text"
+                title="Remove everything typed in the search boxes"
+                className="px-3 py-2 bg-input border border-border text-muted-foreground text-sm font-semibold rounded-lg hover:text-foreground hover:border-primary/40 transition-colors flex items-center gap-1.5 whitespace-nowrap"
+                style={{ fontFamily: "'DM Mono', monospace" }}
+              >
+                <X className="w-4 h-4" />
+                Clear
               </button>
             </div>
           </div>
