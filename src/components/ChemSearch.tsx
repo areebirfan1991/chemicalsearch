@@ -137,22 +137,33 @@ export default function ChemSearch() {
 
   const preloadStarted = useRef(false);
   const fetchPreload = useServerFn(getPreload);
+  const [pendingPreload, setPendingPreload] = useState<{ url: string; name: string } | null>(null);
+  const loadPreload = async (info: { url: string; name: string }) => {
+    setPendingPreload(null);
+    setLoadingFiles(true);
+    try {
+      const res = await fetch(info.url);
+      if (!res.ok) throw new Error();
+      const blob = await res.blob();
+      await handleFiles([new File([blob], info.name)]);
+    } catch {
+      setUploadError(`Couldn't load the preloaded file "${info.name}".`);
+      setLoadingFiles(false);
+    }
+  };
   useEffect(() => {
     if (preloadStarted.current) return;
     preloadStarted.current = true;
     (async () => {
       const info = await fetchPreload().catch(() => null);
       if (!info) return;
-      setLoadingFiles(true);
-      try {
-        const res = await fetch(info.url);
-        if (!res.ok) throw new Error();
-        const blob = await res.blob();
-        await handleFiles([new File([blob], info.name)]);
-      } catch {
-        setUploadError(`Couldn't load the preloaded file "${info.name}".`);
-        setLoadingFiles(false);
-      }
+      // Phones (esp. iOS Safari) kill the tab when a huge file is opened
+      // automatically on load, causing a crash/reload loop. Wait for a tap.
+      const ua = navigator.userAgent;
+      const mobile = /iPhone|iPad|iPod|Android|Mobile/i.test(ua) ||
+        (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+      if (mobile) setPendingPreload(info);
+      else void loadPreload(info);
     })();
   }, []);
 
@@ -350,6 +361,15 @@ export default function ChemSearch() {
               {files.length || loadingFiles ? "Add more files" : "Add files"}
             </Button>
           </div>
+          {pendingPreload && !loadingFiles && (
+            <p className="text-xs text-muted-foreground">
+              Preloaded file "{pendingPreload.name}" is ready.{" "}
+              <button type="button" className="underline text-primary" onClick={() => loadPreload(pendingPreload)}>
+                Tap to load it
+              </button>{" "}
+              (large files may be too big for some phones).
+            </p>
+          )}
           {uploadError && (
             <p className="text-xs text-destructive" role="alert">{uploadError}</p>
           )}
